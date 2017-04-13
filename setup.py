@@ -8,7 +8,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         'click',
-        'jenkinsapi',
+        'jenkinsapi>=0.3.4',
         'pandas',
     ],
     entry_points={

@@ -32,11 +32,14 @@ class Branch(Picker):
     """Picks out job branches."""
 
     def pick(self, build):
-        return build.get_params().get('BRANCH_NAME')
+        return build.get_params().get('BRANCH_NAME') or build._get_git_rev_branch()
 
 
 class Revision(Picker):
     """Picks out build revision."""
 
     def pick(self, build):
-        return build.get_revision()
+        try:
+            return build.get_revision()
+        except KeyError:
+            return build._get_git_rev()
