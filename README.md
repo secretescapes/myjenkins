@@ -13,7 +13,7 @@ Test with:
 Install with:
 
     # Normal install
-    pip3 install git+ssh://github.com/secretescapes/myjenkins@master
+    pip3 install git+ssh://git@github.com/secretescapes/myjenkins.git@master
 
     # Development install
     pip3 install -e .
