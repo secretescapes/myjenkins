@@ -1,21 +1,22 @@
 myjenkins
 =========
 
-Search for flaky tests in Jenkins.
+CLI for Jenkins. Requires Python 3.
 
 Instructions
 ------------
 Test with:
 
+    pip3 install tox
     tox
 
 Install with:
 
     # Normal install
-    pip install git+https://github.com/secretescapes/myjenkins
+    pip3 install git+ssh://github.com/secretescapes/myjenkins@master
 
     # Development install
-    pip install -e .
+    pip3 install -e .
 
 
 Run with:
@@ -30,8 +31,7 @@ Setup environment variables.
     # See <jenkins URL>/user/<your username>/configure for these details
     export JENKINS_USERNAME=joe.bloggs@example.com
     export JENKINS_TOKEN=...
-    export JENKINS_HOSTNAME=jenkins.example.com
-
+    export JENKINS_HOSTNAME=http://jenkins.example.com
 
 Generate a flaky test report.
 
