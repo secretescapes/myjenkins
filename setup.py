@@ -8,8 +8,12 @@ setup(
     packages=find_packages(),
     install_requires=[
         'click',
-        'jenkinsapi>=0.3.4',
+        'jenkinsapi',
         'pandas',
+        'Flask',
+        'flask-restful',
+        'flask-sqlalchemy',
+        'flask-cors',
     ],
     entry_points={
         'console_scripts': [
