@@ -18,6 +18,14 @@ Install with:
     # Development install
     pip3 install -e .
 
+    # Nix install (it's automatically isolated, and the suggested approach, especially if you don't have python3 installed or don't know what is a virtualenv)
+
+    nix-env -f default.nix -i
+
+    # Nix development shell (use py.test directly rather than tox)
+
+    nix-shell
+
 
 Run with:
 
