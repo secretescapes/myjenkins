@@ -106,29 +106,6 @@ def health(o, job, **kwargs):
     output_frame(frame, **kwargs)
 
 
-@myjenkins.command()
-@click.pass_obj
-@click.argument('job')
-def revisions(o, job):
-    """List which revisions have been built."""
-    builds = find_recent_builds(o.client[job])
-
-    def process(subbuild):
-        revision = subbuild.get_revision()
-        if revision:
-            return ((revision, 1)) # FIXME
-
-    results = list(x for x in map(process, o.runner.run(visitor.SubbuildCollector(o.client), builds)) if x)
-
-    frame = pd.DataFrame.from_records(results, columns=('revision', 'n'))
-    frame = (frame
-             .groupby('revision')
-             .aggregate({'n': 'sum'})
-             .sort_values('n', ascending=False))
-
-    output_frame(frame)
-
-
 main = myjenkins
 
 if __name__ == '__main__':
