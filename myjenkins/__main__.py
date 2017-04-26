@@ -1,13 +1,31 @@
 from collections import namedtuple
+from functools import wraps
+import sys
+
 import click
 from jenkinsapi.jenkins import Jenkins
+
 from .actions import find_recent_builds, set_build_description
 from .util import TestStatus, test_status
 from .runner import Runner
-from .process import flaky_breakdown, flaky_time_series
 from .output import output_frame
 from . import visitor, log
 
+try:
+    import pandas as pd
+    pd.set_option('display.max_colwidth', 140)
+    from .process import flaky_breakdown, flaky_time_series
+except ImportError:
+    pd = None
+
+def requires_pandas(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if pd is not None:
+            f(*args, **kwargs)
+        else:
+            sys.exit("This command requires pandas, but pandas is not available")
+    return wrapper
 
 @click.group()
 @click.pass_context
@@ -65,6 +83,7 @@ def failures(o, job, build_id, dry_run):
 @click.option('-f', '--freq', default='D')
 @click.option('-h', '--html', is_flag=True)
 @click.option('-g', '--group-by-test', is_flag=True)
+@requires_pandas
 def health(o, job, **kwargs):
     """Identify flaky tests."""
     builds = find_recent_builds(o.client[job])
@@ -107,6 +126,7 @@ def health(o, job, **kwargs):
 @myjenkins.command()
 @click.pass_obj
 @click.argument('job')
+@requires_pandas
 def revisions(o, job):
     """List which revisions have been built."""
     builds = find_recent_builds(o.client[job])

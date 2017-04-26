@@ -2,6 +2,8 @@ let
   pkgs = import (fetchTarball
     "https://github.com/NixOS/nixpkgs-channels/archive/99dfb6dce37edcd1db7cb85c2db97089d9d5f442.tar.gz"
   ) {};
+  stdenv = pkgs.stdenv;
+  lib = pkgs.lib;
   pythonPackages = pkgs.python35Packages;
   python = pkgs.python35;
   jenkinsapi = pythonPackages.buildPythonPackage rec {
@@ -20,7 +22,7 @@ let
     meta = {
       description = "A Python API for accessing resources on a Jenkins continuous-integration server";
       homepage = https://github.com/pycontribs/jenkinsapi;
-      license = pkgs.stdenv.lib.licenses.mit;
+      license = lib.licenses.mit;
     };
   };
   in pythonPackages.buildPythonApplication {
@@ -28,7 +30,7 @@ let
     src = ./.;
     propagatedBuildInputs = [jenkinsapi] ++ (with pythonPackages; [
       click
-    ]);
+    ] ++ lib.optionals stdenv.isLinux [pandas]);
     buildInputs = [python] ++ (with pkgs; [
       stdenv
       less

@@ -26,6 +26,9 @@ Install with:
 
     nix-shell
 
+    # Full development installation (including pandas, a library using native code needed for the flakyness reports)
+
+    pip install -e .[pandas]
 
 Run with:
 
