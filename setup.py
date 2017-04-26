@@ -9,7 +9,6 @@ setup(
     install_requires=[
         'click',
         'jenkinsapi>=0.3.4',
-        'pandas',
     ],
     entry_points={
         'console_scripts': [

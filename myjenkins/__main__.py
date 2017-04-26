@@ -1,6 +1,5 @@
 from collections import namedtuple
 import click
-import pandas as pd
 from jenkinsapi.jenkins import Jenkins
 from .actions import find_recent_builds, set_build_description
 from .util import TestStatus, test_status
@@ -23,7 +22,6 @@ from . import visitor, log
 @click.option('-k', '--concurrency', type=int, default=-1, help='number of workers')
 def myjenkins(ctx, hostname, username, token, verbose, **config):
     log.setup_logging(verbose)
-    pd.set_option('display.max_colwidth', 140)
 
     ctx.obj = namedtuple('obj', ['client', 'runner'])(Jenkins(hostname, username, token),
                                                       Runner(**config))

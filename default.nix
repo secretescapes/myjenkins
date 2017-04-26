@@ -28,7 +28,6 @@ let
     src = ./.;
     propagatedBuildInputs = [jenkinsapi] ++ (with pythonPackages; [
       click
-      pandas
     ]);
     buildInputs = [python] ++ (with pkgs; [
       stdenv
