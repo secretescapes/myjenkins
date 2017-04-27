@@ -49,30 +49,41 @@ def myjenkins(ctx, hostname, username, token, verbose, **config):
 @click.pass_obj
 @click.argument('job')
 @click.argument('build_id', type=int)
-@click.option('--dry-run', is_flag=True)
-def failures(o, job, build_id, dry_run):
+@click.option('-m', '--max-attempts', type=int, default=3, help='give up after this many attempts')
+def retry(o, job, build_id, max_attempts):
     """Rerun failed tests for a build and its children."""
+    i = 0
+    results = [0]
     job = o.client[job]
-    build = job[build_id]
-    results = visitor.FailedTestCollector(o.client).visit(build)
-    results = set(r.className for r in results)
+    cur = original = job[build_id]
 
-    if results:
-        for result in results:
-            print(result)
+    while i < max_attempts:
+        results = set(r.className for r in visitor.FailedTestCollector(o.client).visit(cur))
 
-        if not dry_run:
-            print('Retrying {0}...'.format(build))
+        if not results:
+            break
 
-            queued_item = job.invoke(build_params={'TEST_WHITELIST': '\n'.join(results)})
-            queued_item.block_until_building()
+        print('Retrying {0} (attempt {1} of {2})...'.format(original, i + 1, max_attempts))
 
-            # FIXME queued_item.get_build() does not work with folders
-            set_build_description(o.client,
-                                  job[queued_item.get_build_number()],
-                                  'Retry of #{0}\'s failed tests'.format(build_id))
-    else:
-        print('No tests have failed for {0}'.format(build))
+        queued = job.invoke(build_params={'TEST_WHITELIST': '\n'.join(results)})
+        queued.block_until_building()
+        triggered = job[queued.get_build_number()] # FIXME queued.get_build() does not work with folders
+
+        set_build_description(o.client,
+                              triggered,
+                              'Retry of #{0}\'s failed tests'.format(cur.buildno))
+
+        print('Waiting for completion ({0})...'.format(triggered.baseurl))
+        triggered.block_until_complete()
+
+        # Retry those that failed again
+        cur = triggered
+        i += 1
+
+    if i > 0:
+        print('All tests passed after {0} attempt(s)'.format(i))
+    elif not results:
+        print('No tests have failed for that build')
 
 
 @myjenkins.command()
