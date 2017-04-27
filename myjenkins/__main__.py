@@ -2,6 +2,7 @@ from collections import namedtuple
 from functools import wraps
 import click
 from jenkinsapi.jenkins import Jenkins
+from .validation import positive_nonzero
 from .actions import find_recent_builds, set_build_description
 from .util import TestStatus, test_status
 from .runner import Runner
@@ -45,21 +46,21 @@ def myjenkins(ctx, hostname, username, token, verbose, **config):
 @click.pass_obj
 @click.argument('job')
 @click.argument('build_id', type=int)
-@click.option('-m', '--max-attempts', type=int, default=3, help='give up after this many attempts')
+@click.option('-m', '--max-attempts', type=int, default=3, callback=positive_nonzero,
+              help='give up after this many attempts')
 def retry(o, job, build_id, max_attempts):
     """Rerun failed tests for a build and its children."""
-    i = 0
-    results = [0]
     job = o.client[job]
     cur = original = job[build_id]
+    attempt_n = 0
 
-    while i < max_attempts:
+    while True:
         results = set(r.className for r in visitor.FailedTestCollector(o.client).visit(cur))
-
-        if not results:
+        if not results or attempt_n >= max_attempts:
             break
 
-        print('Retrying {0} (attempt {1} of {2})...'.format(original, i + 1, max_attempts))
+        # Retry the failed tests
+        print('Retrying {0} (attempt {1} of {2})...'.format(original, attempt_n + 1, max_attempts))
 
         queued = job.invoke(build_params={'TEST_WHITELIST': '\n'.join(results)})
         queued.block_until_building()
@@ -71,15 +72,18 @@ def retry(o, job, build_id, max_attempts):
 
         print('Waiting for completion ({0})...'.format(triggered.baseurl))
         triggered.block_until_complete()
+        triggered.poll()
 
-        # Retry those that failed again
+        # Retry those that failed again, again
         cur = triggered
-        i += 1
+        attempt_n += 1
 
-    if i > 0:
-        print('All tests passed after {0} attempt(s)'.format(i))
-    elif not results:
-        print('No tests have failed for that build')
+    if attempt_n == 0:
+        raise click.BadParameter('No tests have failed for that build', param_hint='build_id')
+    elif results:
+        print('Failure: {0} tests are still failing after {1} attempts'.format(len(results), attempt_n + 1))
+    else:
+        print('Success: all tests passed after {0} attempt(s)'.format(attempt_n + 1))
 
 
 @myjenkins.command()
