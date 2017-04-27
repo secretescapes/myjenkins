@@ -1,31 +1,27 @@
 from collections import namedtuple
 from functools import wraps
-import sys
-
 import click
 from jenkinsapi.jenkins import Jenkins
-
 from .actions import find_recent_builds, set_build_description
 from .util import TestStatus, test_status
 from .runner import Runner
 from .output import output_frame
 from . import visitor, log
 
-try:
-    import pandas as pd
-    pd.set_option('display.max_colwidth', 140)
-    from .process import flaky_breakdown, flaky_time_series
-except ImportError:
-    pd = None
 
 def requires_pandas(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if pd is not None:
-            f(*args, **kwargs)
-        else:
-            sys.exit("This command requires pandas, but pandas is not available")
+        try:
+            import pandas as pd
+        except ImportError:
+            raise click.UsageError('pandas must be installed to run this command')
+
+        pd.set_option('display.max_colwidth', 140)
+        f(*args, **kwargs)
+
     return wrapper
+
 
 @click.group()
 @click.pass_context
@@ -97,6 +93,9 @@ def retry(o, job, build_id, max_attempts):
 @requires_pandas
 def health(o, job, **kwargs):
     """Identify flaky tests."""
+    import pandas as pd
+    from .process import flaky_breakdown, flaky_time_series
+
     builds = find_recent_builds(o.client[job])
 
     def process(result):
@@ -132,6 +131,7 @@ def health(o, job, **kwargs):
                       vi.matches))
 
     output_frame(frame, **kwargs)
+
 
 main = myjenkins
 
