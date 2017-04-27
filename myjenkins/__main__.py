@@ -60,7 +60,10 @@ def retry(o, job, build_id, max_attempts):
             break
 
         # Retry the failed tests
-        print('Retrying {0} (attempt {1} of {2})...'.format(original, attempt_n + 1, max_attempts))
+        print('Retrying {0} (attempt {1} of {2}; {3} tests still failing)...'.format(original,
+                                                                                     attempt_n + 1,
+                                                                                     max_attempts,
+                                                                                     len(results)))
 
         queued = job.invoke(build_params={'TEST_WHITELIST': '\n'.join(results)})
         queued.block_until_building()
@@ -70,7 +73,7 @@ def retry(o, job, build_id, max_attempts):
                               triggered,
                               'Retry of #{0}\'s failed tests'.format(cur.buildno))
 
-        print('Waiting for completion ({0})...'.format(triggered.baseurl))
+        print('Waiting for {0} ...'.format(triggered.baseurl))
         triggered.block_until_complete()
         triggered.poll()
 
