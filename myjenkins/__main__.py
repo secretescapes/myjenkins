@@ -57,17 +57,17 @@ def retry(o, job, build_id, max_attempts):
     attempt_n = 0
 
     while True:
-        results = set(r.className for r in visitor.FailedTestCollector(o.client).visit(cur))
-        if not results or attempt_n >= max_attempts:
+        failures = set(r.className for r in visitor.FailedTestCollector(o.client).visit(cur))
+        if not failures or attempt_n >= max_attempts:
             break
 
         # Retry the failed tests
         print('Retrying {0} (attempt {1} of {2}; {3} tests still failing)...'.format(original,
                                                                                      attempt_n + 1,
                                                                                      max_attempts,
-                                                                                     len(results)))
+                                                                                     len(failures)))
 
-        queued = job.invoke(build_params={'TEST_WHITELIST': '\n'.join(results)})
+        queued = job.invoke(build_params={'TEST_WHITELIST': '\n'.join(failures)})
         queued.block_until_building()
         triggered = job[queued.get_build_number()] # FIXME queued.get_build() does not work with folders
 
@@ -85,8 +85,8 @@ def retry(o, job, build_id, max_attempts):
 
     if attempt_n == 0:
         raise click.BadParameter('No tests have failed for that build', param_hint='build_id')
-    elif results:
-        print('Failure: {0} test(s) are still failing after {1} attempts'.format(len(results), attempt_n + 1))
+    elif failures:
+        print('Failure: {0} test(s) are still failing after {1} attempts'.format(len(failures), attempt_n + 1))
     else:
         print('Success: all tests passed after {0} attempt(s)'.format(attempt_n + 1))
 
