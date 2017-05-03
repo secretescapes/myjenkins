@@ -84,7 +84,7 @@ def retry(o, job, build_id, max_attempts):
     if attempt_n == 0:
         raise click.BadParameter('No tests have failed for that build', param_hint='build_id')
     elif results:
-        print('Failure: {0} tests are still failing after {1} attempts'.format(len(results), attempt_n + 1))
+        print('Failure: {0} test(s) are still failing after {1} attempts'.format(len(results), attempt_n + 1))
     else:
         print('Success: all tests passed after {0} attempt(s)'.format(attempt_n + 1))
 
