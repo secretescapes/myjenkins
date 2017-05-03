@@ -9,6 +9,7 @@ setup(
     install_requires=[
         'click',
         'jenkinsapi>=0.3.4',
+        'colorama',
     ],
     extras_require={
         'pandas': ['pandas']

@@ -2,11 +2,12 @@ import shutil
 from difflib import SequenceMatcher
 from collections import namedtuple
 from functools import wraps
+from termcolor import colored
 import click
 from jenkinsapi.jenkins import Jenkins
 from .validation import positive_nonzero
 from .actions import find_recent_builds, set_build_description
-from .util import TestStatus, test_status
+from .util import TestStatus, test_status, ltrunc
 from .runner import Runner
 from .output import output_frame
 from . import visitor, log
@@ -158,9 +159,16 @@ def summary(o, job, build_id, similarity, max_artifacts):
                              if matcher.ratio() > similarity]
         related_artifacts = sorted(related_artifacts, key=lambda r: r[0].ratio(), reverse=True)[:max_artifacts]
 
-        print('\n{0}\n{1}\n{0}'.format('=' * shutil.get_terminal_size()[0], failure.identifier()))
-        for _, artifact in related_artifacts:
-            print('\t' + artifact.url)
+        term_width = shutil.get_terminal_size()[0]
+        header = '\n' + (' {} ').format(ltrunc(failure.identifier(), term_width - 10)).center(term_width, '=')
+
+        print(colored(header, 'white', attrs=['bold']))
+        print('Stacktrace:\n{0}'.format(failure.errorStackTrace))
+
+        if related_artifacts:
+            print('Artifacts:')
+            for _, artifact in related_artifacts:
+                print(artifact.url)
 
 
 main = myjenkins

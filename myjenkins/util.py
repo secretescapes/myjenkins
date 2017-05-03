@@ -14,6 +14,10 @@ def format_dict(d):
                      d.items())
 
 
+def ltrunc(s, max_length):
+    return s if len(s) < max_length else '..' + s[-max_length + 3:]
+
+
 class PrettyRepr(object):
     def __repr__(self):
         return '<{0}: {1}>'.format(self.__class__.__name__,
