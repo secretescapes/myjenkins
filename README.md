@@ -9,21 +9,26 @@ Install with:
 
     pip3 install git+ssh://git@github.com/secretescapes/myjenkins.git@stable#egg=myjenkins[pandas]
 
+Or with Nix:
+
+    nix-env -f https://github.com/secretescapes/myjenkins/archive/stable.tar.gz -i
+
+
 Run with (see Examples section):
 
     myjenkins
+
+Development
+-----------
 
 Test with:
 
     pip3 install tox
     tox
 
-Using Nix
----------
-Alternatively, use Nix.
+You can get a development shell with Nix:
 
     cd myjenkins
-    nix-env -f default.nix -i
     nix-shell
 
 Examples
