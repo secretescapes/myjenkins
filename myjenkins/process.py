@@ -34,17 +34,3 @@ def flaky_breakdown(frame, min_builds=2, group_by_test=False, **_):
     frame = frame.drop([('failure', 'flakes')], axis=1)
 
     return frame
-
-
-def flaky_time_series(frame, freq='D', **_):
-    """Show flaky builds by time."""
-    # TODO Show same columns as the breakdown
-    aggregations = OrderedDict([
-        ('failure', {'flakes': nflakes}),
-    ])
-
-    frame = frame.set_index('timestamp').groupby(['test', pd.TimeGrouper(freq=freq), 'branch', 'revision'])
-    frame = frame.agg(aggregations)
-    frame = frame[frame['failure']['flakes'] > 0]
-
-    return frame

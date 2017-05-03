@@ -93,7 +93,6 @@ def retry(o, job, build_id, max_attempts):
 @click.pass_obj
 @click.argument('job')
 @click.option('-m', '--min-builds', default=2, help='only mark as flaky if >= N builds seen')
-@click.option('-t', '--time-series', is_flag=True)
 @click.option('-f', '--freq', default='D')
 @click.option('-h', '--html', is_flag=True)
 @click.option('-g', '--group-by-test', is_flag=True)
@@ -101,7 +100,7 @@ def retry(o, job, build_id, max_attempts):
 def health(o, job, **kwargs):
     """Identify flaky tests."""
     import pandas as pd
-    from .process import flaky_breakdown, flaky_time_series
+    from .process import flaky_breakdown
 
     builds = find_recent_builds(o.client[job])
 
