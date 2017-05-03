@@ -3,37 +3,28 @@ myjenkins
 
 CLI for Jenkins. Requires Python 3.
 
-Instructions
+Installation
 ------------
+Install with:
+
+    pip3 install git+ssh://git@github.com/secretescapes/myjenkins.git@stable#egg=myjenkins[pandas]
+
+Run with (see Examples section):
+
+    myjenkins
+
 Test with:
 
     pip3 install tox
     tox
 
-Install with:
+Using Nix
+---------
+Alternatively, use Nix.
 
-    # Normal install
-    pip3 install git+ssh://git@github.com/secretescapes/myjenkins.git@master
-
-    # Development install
-    pip3 install -e .
-
-    # Nix install (it's automatically isolated, and the suggested approach, especially if you don't have python3 installed or don't know what is a virtualenv)
-
+    cd myjenkins
     nix-env -f default.nix -i
-
-    # Nix development shell (use py.test directly rather than tox)
-
     nix-shell
-
-    # Full development installation (including pandas, a library using native code needed for the flakyness reports)
-
-    pip install -e .[pandas]
-
-Run with:
-
-    myjenkins
-
 
 Examples
 --------
