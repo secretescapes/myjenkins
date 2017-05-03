@@ -10,8 +10,8 @@ setup(
         'click',
         'jenkinsapi>=0.3.4',
     ],
-    extras_require = {
-        'pandas':  ["pandas"]
+    extras_require={
+        'pandas': ['pandas']
     },
     entry_points={
         'console_scripts': [
