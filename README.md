@@ -49,6 +49,6 @@ Generate a flaky test report.
     myjenkins health myjob # Single / multi-job
     myjenkins health mypipeline/master # Pipelines
 
-Rerun failed tests of build #2 of mypipeline's master branch.
+Rerun failed tests of build #2 of mypipeline's master branch (up to 3 times).
 
-    myjenkins failures mypipeline/master 2
+    myjenkins retry mypipeline/master 2

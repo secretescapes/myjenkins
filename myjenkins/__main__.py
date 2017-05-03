@@ -1,31 +1,28 @@
 from collections import namedtuple
 from functools import wraps
-import sys
-
 import click
 from jenkinsapi.jenkins import Jenkins
-
+from .validation import positive_nonzero
 from .actions import find_recent_builds, set_build_description
 from .util import TestStatus, test_status
 from .runner import Runner
 from .output import output_frame
 from . import visitor, log
 
-try:
-    import pandas as pd
-    pd.set_option('display.max_colwidth', 140)
-    from .process import flaky_breakdown, flaky_time_series
-except ImportError:
-    pd = None
 
 def requires_pandas(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if pd is not None:
-            f(*args, **kwargs)
-        else:
-            sys.exit("This command requires pandas, but pandas is not available")
+        try:
+            import pandas as pd
+        except ImportError:
+            raise click.UsageError('pandas must be installed to run this command')
+
+        pd.set_option('display.max_colwidth', 140)
+        f(*args, **kwargs)
+
     return wrapper
+
 
 @click.group()
 @click.pass_context
@@ -49,30 +46,47 @@ def myjenkins(ctx, hostname, username, token, verbose, **config):
 @click.pass_obj
 @click.argument('job')
 @click.argument('build_id', type=int)
-@click.option('--dry-run', is_flag=True)
-def failures(o, job, build_id, dry_run):
+@click.option('-m', '--max-attempts', type=int, default=3, callback=positive_nonzero,
+              help='give up after this many attempts')
+def retry(o, job, build_id, max_attempts):
     """Rerun failed tests for a build and its children."""
     job = o.client[job]
-    build = job[build_id]
-    results = visitor.FailedTestCollector(o.client).visit(build)
-    results = set(r.className for r in results)
+    cur = original = job[build_id]
+    attempt_n = 0
 
-    if results:
-        for result in results:
-            print(result)
+    while True:
+        results = set(r.className for r in visitor.FailedTestCollector(o.client).visit(cur))
+        if not results or attempt_n >= max_attempts:
+            break
 
-        if not dry_run:
-            print('Retrying {0}...'.format(build))
+        # Retry the failed tests
+        print('Retrying {0} (attempt {1} of {2}; {3} tests still failing)...'.format(original,
+                                                                                     attempt_n + 1,
+                                                                                     max_attempts,
+                                                                                     len(results)))
 
-            queued_item = job.invoke(build_params={'TEST_WHITELIST': '\n'.join(results)})
-            queued_item.block_until_building()
+        queued = job.invoke(build_params={'TEST_WHITELIST': '\n'.join(results)})
+        queued.block_until_building()
+        triggered = job[queued.get_build_number()] # FIXME queued.get_build() does not work with folders
 
-            # FIXME queued_item.get_build() does not work with folders
-            set_build_description(o.client,
-                                  job[queued_item.get_build_number()],
-                                  'Retry of #{0}\'s failed tests'.format(build_id))
+        set_build_description(o.client,
+                              triggered,
+                              'Retry of #{0}\'s failed tests'.format(cur.buildno))
+
+        print('Waiting for {0} ...'.format(triggered.baseurl))
+        triggered.block_until_complete()
+        triggered.poll()
+
+        # Retry those that failed again, again
+        cur = triggered
+        attempt_n += 1
+
+    if attempt_n == 0:
+        raise click.BadParameter('No tests have failed for that build', param_hint='build_id')
+    elif results:
+        print('Failure: {0} test(s) are still failing after {1} attempts'.format(len(results), attempt_n + 1))
     else:
-        print('No tests have failed for {0}'.format(build))
+        print('Success: all tests passed after {0} attempt(s)'.format(attempt_n + 1))
 
 
 @myjenkins.command()
@@ -86,6 +100,9 @@ def failures(o, job, build_id, dry_run):
 @requires_pandas
 def health(o, job, **kwargs):
     """Identify flaky tests."""
+    import pandas as pd
+    from .process import flaky_breakdown, flaky_time_series
+
     builds = find_recent_builds(o.client[job])
 
     def process(result):
@@ -121,6 +138,7 @@ def health(o, job, **kwargs):
                       vi.matches))
 
     output_frame(frame, **kwargs)
+
 
 main = myjenkins
 

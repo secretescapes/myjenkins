@@ -1,7 +1,7 @@
 from collections import OrderedDict
-
 import numpy as np
 import pandas as pd
+
 
 def nflakes(series):
     return np.sum(x for x in np.ediff1d(series) if x > 0)
