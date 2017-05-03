@@ -43,3 +43,7 @@ Generate a flaky test report.
 Rerun failed tests of build #2 of mypipeline's master branch (up to 3 times).
 
     myjenkins retry mypipeline/master 2
+
+Find all failed tests and related artifacts for build #10.
+
+    myjenkins summary mypipeline/master 10

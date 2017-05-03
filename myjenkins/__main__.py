@@ -1,3 +1,5 @@
+import shutil
+from difflib import SequenceMatcher
 from collections import namedtuple
 from functools import wraps
 import click
@@ -55,17 +57,17 @@ def retry(o, job, build_id, max_attempts):
     attempt_n = 0
 
     while True:
-        results = set(r.className for r in visitor.FailedTestCollector(o.client).visit(cur))
-        if not results or attempt_n >= max_attempts:
+        failures = set(r.className for r in visitor.FailedTestCollector(o.client).visit(cur))
+        if not failures or attempt_n >= max_attempts:
             break
 
         # Retry the failed tests
         print('Retrying {0} (attempt {1} of {2}; {3} tests still failing)...'.format(original,
                                                                                      attempt_n + 1,
                                                                                      max_attempts,
-                                                                                     len(results)))
+                                                                                     len(failures)))
 
-        queued = job.invoke(build_params={'TEST_WHITELIST': '\n'.join(results)})
+        queued = job.invoke(build_params={'TEST_WHITELIST': '\n'.join(failures)})
         queued.block_until_building()
         triggered = job[queued.get_build_number()] # FIXME queued.get_build() does not work with folders
 
@@ -83,8 +85,8 @@ def retry(o, job, build_id, max_attempts):
 
     if attempt_n == 0:
         raise click.BadParameter('No tests have failed for that build', param_hint='build_id')
-    elif results:
-        print('Failure: {0} test(s) are still failing after {1} attempts'.format(len(results), attempt_n + 1))
+    elif failures:
+        print('Failure: {0} test(s) are still failing after {1} attempts'.format(len(failures), attempt_n + 1))
     else:
         print('Success: all tests passed after {0} attempt(s)'.format(attempt_n + 1))
 
@@ -93,7 +95,6 @@ def retry(o, job, build_id, max_attempts):
 @click.pass_obj
 @click.argument('job')
 @click.option('-m', '--min-builds', default=2, help='only mark as flaky if >= N builds seen')
-@click.option('-t', '--time-series', is_flag=True)
 @click.option('-f', '--freq', default='D')
 @click.option('-h', '--html', is_flag=True)
 @click.option('-g', '--group-by-test', is_flag=True)
@@ -101,7 +102,7 @@ def retry(o, job, build_id, max_attempts):
 def health(o, job, **kwargs):
     """Identify flaky tests."""
     import pandas as pd
-    from .process import flaky_breakdown, flaky_time_series
+    from .process import flaky_breakdown
 
     builds = find_recent_builds(o.client[job])
 
@@ -123,21 +124,43 @@ def health(o, job, **kwargs):
 
     frame = pd.DataFrame.from_records(results,
                                       columns=('test', 'branch', 'revision', 'success', 'failure', 'timestamp'))
+    frame = flaky_breakdown(frame, **kwargs)
 
-    if kwargs['time_series']:
-        frame = flaky_time_series(frame, **kwargs)
-    else:
-        frame = flaky_breakdown(frame, **kwargs)
-
-        print('Found {0} flaky tests (of {1} total tests) affecting {2} branches '
-              '(based on {3} test runs from {4} builds)'
-              .format(frame.index.get_level_values('test').nunique(),
-                      len(set(t[0] for t in results)),
-                      frame.index.get_level_values('branch').nunique(),
-                      len(results),
-                      vi.matches))
+    print('Found {0} flaky tests (of {1} total tests) affecting {2} branches '
+          '(based on {3} test runs from {4} builds)'
+          .format(frame.index.get_level_values('test').nunique(),
+                  len(set(t[0] for t in results)),
+                  frame.index.get_level_values('branch').nunique(),
+                  len(results),
+                  vi.matches))
 
     output_frame(frame, **kwargs)
+
+
+@myjenkins.command()
+@click.pass_obj
+@click.argument('job')
+@click.argument('build_id', type=int)
+@click.option('-s', '--similarity', type=float, default=0.6, help='0.0 - 1.0; lower values match artifacts more leniently')
+@click.option('-m', '--max-artifacts', type=int, default=2)
+def summary(o, job, build_id, similarity, max_artifacts):
+    """Finds all failed tests and the URLs of any artifacts (i.e. test reports) whose names are similar."""
+    job = o.client[job]
+    build = job[build_id]
+
+    failures = visitor.FailedTestCollector(o.client).visit(build)
+    artifacts = set(build.get_artifacts())
+
+    # Find artifacts with similar names to the failed tests (with brute-force)
+    for failure in failures:
+        related_artifacts = [(matcher, artifact) for matcher, artifact in
+                             ((SequenceMatcher(a=failure.name, b=artifact.filename, autojunk=False), artifact) for artifact in artifacts)
+                             if matcher.ratio() > similarity]
+        related_artifacts = sorted(related_artifacts, key=lambda r: r[0].ratio(), reverse=True)[:max_artifacts]
+
+        print('\n{0}\n{1}\n{0}'.format('=' * shutil.get_terminal_size()[0], failure.identifier()))
+        for _, artifact in related_artifacts:
+            print('\t' + artifact.url)
 
 
 main = myjenkins
