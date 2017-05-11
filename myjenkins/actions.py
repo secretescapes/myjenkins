@@ -6,12 +6,15 @@ from jenkinsapi.custom_exceptions import NotFound
 logger = logging.getLogger('myjenkins') # FIXME Should use __name__
 
 
-def find_recent_builds(job):
+def find_recent_builds(job, allow_failures=False):
     """Return a list of most recent builds for a job."""
     builds = _find_recent_builds(job)
     builds = filter(lambda b: not b.is_running(), builds)
-    builds = filter(lambda b: b.get_status() in ['SUCCESS', 'UNSTABLE'],
-                    builds)
+
+    if not allow_failures:
+        logger.info('Ignoring failed builds')
+        builds = filter(lambda b: b.get_status() in ['SUCCESS', 'UNSTABLE'],
+                        builds)
 
     return builds
 

@@ -1,6 +1,6 @@
 
 
-def output_frame(frame, html=False, **_):
+def output_frame(frame, html=False):
     """Output the frame to console."""
     if frame.empty:
         return

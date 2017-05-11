@@ -7,7 +7,7 @@ import click
 from jenkinsapi.jenkins import Jenkins
 from .validation import positive_nonzero
 from .actions import find_recent_builds, set_build_description
-from .util import TestStatus, test_status, ltrunc
+from .util import TestStatus, test_status, ltrunc, subset
 from .runner import Runner
 from .output import output_frame
 from . import visitor, log
@@ -96,16 +96,16 @@ def retry(o, job, build_id, max_attempts):
 @click.pass_obj
 @click.argument('job')
 @click.option('-m', '--min-builds', default=2, help='only mark as flaky if >= N builds seen')
-@click.option('-f', '--freq', default='D')
 @click.option('-h', '--html', is_flag=True)
 @click.option('-g', '--group-by-test', is_flag=True)
+@click.option('-f', '--allow-failures', is_flag=True)
 @requires_pandas
 def health(o, job, **kwargs):
     """Identify flaky tests."""
     import pandas as pd
     from .process import flaky_breakdown
 
-    builds = find_recent_builds(o.client[job])
+    builds = find_recent_builds(o.client[job], **subset(kwargs, ['allow_failures']))
 
     def process(result):
         test, branch, revision, timestamp = result
@@ -125,7 +125,7 @@ def health(o, job, **kwargs):
 
     frame = pd.DataFrame.from_records(results,
                                       columns=('test', 'branch', 'revision', 'success', 'failure', 'timestamp'))
-    frame = flaky_breakdown(frame, **kwargs)
+    frame = flaky_breakdown(frame, **subset(kwargs, ['min_builds', 'group_by_test']))
 
     print('Found {0} flaky tests (of {1} total tests) affecting {2} branches '
           '(based on {3} test runs from {4} builds)'
@@ -135,7 +135,7 @@ def health(o, job, **kwargs):
                   len(results),
                   vi.matches))
 
-    output_frame(frame, **kwargs)
+    output_frame(frame, **subset(kwargs, ['html']))
 
 
 @myjenkins.command()

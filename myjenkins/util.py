@@ -18,6 +18,10 @@ def ltrunc(s, max_length):
     return s if len(s) < max_length else '..' + s[-max_length + 3:]
 
 
+def subset(d, keys):
+    return dict((k, d[k]) for k in keys if k in d)
+
+
 class PrettyRepr(object):
     def __repr__(self):
         return '<{0}: {1}>'.format(self.__class__.__name__,

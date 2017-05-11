@@ -1,13 +1,12 @@
 from collections import OrderedDict
 import numpy as np
-import pandas as pd
 
 
 def nflakes(series):
     return np.sum(x for x in np.ediff1d(series) if x > 0)
 
 
-def flaky_breakdown(frame, min_builds=2, group_by_test=False, **_):
+def flaky_breakdown(frame, min_builds=2, group_by_test=False):
     """Generate a breakdown of flaky tests by branch and revision."""
     aggregations = OrderedDict([
         ('success', {'n': 'sum'}),
