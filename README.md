@@ -17,6 +17,13 @@ Or with Nix:
 Run with (see Examples section):
 
     myjenkins
+    
+    
+Upgrade
+--------
+For pip installs:
+
+    pip3 install git+ssh://git@github.com/secretescapes/myjenkins.git@stable#egg=myjenkins[pandas] --upgrade
 
 Development
 -----------
