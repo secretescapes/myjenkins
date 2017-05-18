@@ -30,6 +30,8 @@ let
     src = ./.;
     propagatedBuildInputs = [jenkinsapi] ++ (with pythonPackages; [
       click
+      colorama
+      termcolor
     ] ++ lib.optionals stdenv.isLinux [pandas]);
     buildInputs = [python] ++ (with pkgs; [
       stdenv
