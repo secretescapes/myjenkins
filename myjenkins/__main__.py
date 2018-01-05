@@ -1,3 +1,4 @@
+import subprocess
 import shutil
 from difflib import SequenceMatcher
 from collections import namedtuple
@@ -51,7 +52,8 @@ def myjenkins(ctx, hostname, username, token, verbose, **config):
 @click.argument('build_id', type=int)
 @click.option('-m', '--max-attempts', type=int, default=3, callback=positive_nonzero,
               help='give up after this many attempts')
-def retry(o, job, build_id, max_attempts):
+@click.option('-n', '--no-whitelist', is_flag=True, help='Do not pass the TEST_WHITELIST parameter')
+def retry(o, job, build_id, max_attempts, no_whitelist):
     """Rerun failed tests for a build and its children."""
     job = o.client[job]
     cur = original = job[build_id]
@@ -68,7 +70,7 @@ def retry(o, job, build_id, max_attempts):
                                                                                      max_attempts,
                                                                                      len(failures)))
 
-        queued = job.invoke(build_params={'TEST_WHITELIST': '\n'.join(failures)})
+        queued = job.invoke(build_params=None if no_whitelist else {'TEST_WHITELIST': '\n'.join(failures)})
         queued.block_until_building()
         triggered = job[queued.get_build_number()] # FIXME queued.get_build() does not work with folders
 
@@ -144,16 +146,21 @@ def health(o, job, **kwargs):
 @click.argument('build_id', type=int)
 @click.option('-s', '--similarity', type=float, default=0.6, help='0.0 - 1.0; lower values match artifacts more leniently')
 @click.option('-m', '--max-artifacts', type=int, default=2)
-def summary(o, job, build_id, similarity, max_artifacts):
+@click.option('-r', '--restrict')
+def summary(o, job, build_id, similarity, max_artifacts, restrict):
     """Finds all failed tests and the URLs of any artifacts (i.e. test reports) whose names are similar."""
     job = o.client[job]
     build = job[build_id]
 
     failures = visitor.FailedTestCollector(o.client).visit(build)
     artifacts = set(build.get_artifacts())
+    console = build.get_console().encode('UTF-8')
 
-    # Find artifacts with similar names to the failed tests (with brute-force)
     for failure in failures:
+        if restrict and restrict not in failure.name:
+            continue
+
+        # Find artifacts with similar names to the failed tests (with brute-force)
         related_artifacts = [(matcher, artifact) for matcher, artifact in
                              ((SequenceMatcher(a=failure.name, b=artifact.filename, autojunk=False), artifact) for artifact in artifacts)
                              if matcher.ratio() > similarity]
@@ -169,6 +176,28 @@ def summary(o, job, build_id, similarity, max_artifacts):
             print('Artifacts:')
             for _, artifact in related_artifacts:
                 print(artifact.url)
+
+        proc = subprocess.Popen(['grep', failure.className, '--color=always', '-C15', '-n'],
+                                env={'GREP_COLORS': 'ms=01;31:mc=01;31:sl=:cx=:fn=35:ln=:bn=32:se='},
+                                stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE)
+        out, _ = proc.communicate(console)
+        lines = out.decode('UTF-8').split('\n')
+
+        # Filter out other workers crappily
+        prefix = None
+        for line in lines:
+            if failure.className in line:
+                start = line.find('[') + 1
+                end = line.find('] ', start)
+
+                if start and end:
+                    prefix = line[start:end]
+
+        if prefix:
+            lines = filter(lambda x: prefix in x, lines)
+
+        print('\nInteresting logs (worker = {0}):\n{1}'.format(prefix, '\n'.join(lines)))
 
 
 main = myjenkins
